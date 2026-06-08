@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Brand — Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-icon">🎟</div>
+          <div>
+            <h1>Your Brand</h1>
+            <p>Organizer panel</p>
+          </div>
+        </div>
+
+        <button class="nav-btn active" data-route="dashboard">Dashboard</button>
+        <button class="nav-btn" data-route="events">Events</button>
+        <button class="nav-btn" data-route="orders">Orders</button>
+        <button class="nav-btn" data-route="tickets">Tickets</button>
+        <button class="nav-btn" data-route="returns">Returns</button>
+        <button class="nav-btn" data-route="sales">Sales & Analytics</button>
+        <button class="nav-btn nav-cta" data-route="create">+ Create event</button>
+
+        <div class="sidebar-footer">
+          Demo mode — data saved in your browser (localStorage). No server required.
+        </div>
+      </aside>
+
+      <main class="main" id="main"></main>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="modal-overlay" id="return-modal" hidden>
+      <div class="modal">
+        <div class="modal-head">
+          <h3 id="return-modal-title">Return ticket</h3>
+          <button type="button" class="modal-close" id="return-modal-close" aria-label="Close">×</button>
+        </div>
+        <p class="modal-desc" id="return-modal-desc"></p>
+        <label class="field">
+          <span>Reason</span>
+          <select id="return-reason"></select>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="return-modal-cancel">Cancel</button>
+          <button type="button" class="btn btn-danger" id="return-modal-confirm">Confirm return</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
