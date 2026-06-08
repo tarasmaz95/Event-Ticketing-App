@@ -12,9 +12,10 @@ import { Colors } from '../theme';
 interface Props {
   onBack: () => void;
   onTickets: () => void;
+  email?: string;
 }
 
-export function PurchaseSuccessScreen({ onBack, onTickets }: Props) {
+export function PurchaseSuccessScreen({ onBack, onTickets, email }: Props) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.red} />
@@ -42,6 +43,8 @@ export function PurchaseSuccessScreen({ onBack, onTickets }: Props) {
 
         <Text style={styles.thanks}>Thank you!</Text>
         <Text style={styles.subThanks}>Tickets successfully purchased.</Text>
+        <Text style={styles.emailNote}>Your ticket has been sent to your email.</Text>
+        {email ? <Text style={styles.emailValue}>{email}</Text> : null}
       </View>
 
       <SafeAreaView edges={['bottom']} style={styles.footer}>
@@ -148,8 +151,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.red,
-    marginBottom: 32,
+    marginBottom: 12,
     textAlign: 'center',
+  },
+  emailNote: {
+    fontSize: 15,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  emailValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textDark,
+    textAlign: 'center',
+    marginBottom: 32,
   },
   footer: {
     borderTopWidth: 1,

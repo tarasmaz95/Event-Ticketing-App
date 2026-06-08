@@ -84,6 +84,7 @@ export default function App() {
         <PurchaseSuccessScreen
           onBack={() => resetToHome('cinema')}
           onTickets={() => resetToHome('tickets')}
+          email={customer?.email}
         />
       </SafeAreaProvider>
     );
