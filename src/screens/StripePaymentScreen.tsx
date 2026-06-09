@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,20 @@ import {
   TextInput,
   TouchableOpacity,
   StatusBar,
-  Alert,
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import type { TextInput as TextInputType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
 import type { CheckoutOrder } from '../data/checkout';
 import { getShowItemById } from '../data/catalog';
+import { isValidExpiry, readWebInputValue } from '../lib/formUtils';
 
 const STRIPE_PURPLE = '#635BFF';
+const TEST_CARD = '4242424242424242';
+const TEST_EXPIRY = '12/34';
+const TEST_CVC = '123';
 
 export interface PaymentCustomer {
   name: string;
@@ -45,36 +49,58 @@ export function StripePaymentScreen({ order, customer, onBack, onPay }: Props) {
   const item = getShowItemById(order.itemId);
   const total = useMemo(
     () => order.seats.reduce((sum, s) => sum + s.price, 0),
-    [order.seats]
+    [order.seats],
   );
 
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvc, setCvc] = useState('');
   const [paying, setPaying] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const cardDigits = cardNumber.replace(/\D/g, '');
-  const cvcDigits = cvc.replace(/\D/g, '');
-  const expiryDigits = expiry.replace(/\D/g, '');
+  const cardRef = useRef<TextInputType>(null);
+  const expiryRef = useRef<TextInputType>(null);
+  const cvcRef = useRef<TextInputType>(null);
+
+  const fillTestCard = () => {
+    setCardNumber(formatCardNumber(TEST_CARD));
+    setExpiry(TEST_EXPIRY);
+    setCvc(TEST_CVC);
+    setFormError(null);
+  };
 
   const handlePay = async () => {
-    if (cardDigits.length < 16) {
-      Alert.alert('Invalid card', 'Please enter a valid 16-digit card number.');
+    setFormError(null);
+
+    const resolvedCard = (
+      cardNumber.replace(/\D/g, '') || readWebInputValue(cardRef).replace(/\D/g, '')
+    );
+    const resolvedExpiry = expiry || readWebInputValue(expiryRef);
+    const resolvedExpiryDigits = resolvedExpiry.replace(/\D/g, '');
+    const resolvedCvc = (
+      cvc.replace(/\D/g, '') || readWebInputValue(cvcRef).replace(/\D/g, '')
+    );
+
+    if (resolvedCard.length < 16) {
+      setFormError('Enter a 16-digit card number, or tap the test card hint below.');
       return;
     }
-    if (expiryDigits.length < 4) {
-      Alert.alert('Invalid expiry', 'Please enter expiry as MM/YY.');
+    if (!isValidExpiry(resolvedExpiryDigits)) {
+      setFormError('Enter expiry as MM/YY (month 01–12). Example: 12/34.');
       return;
     }
-    if (cvcDigits.length < 3) {
-      Alert.alert('Invalid CVC', 'Please enter the 3-digit security code.');
+    if (resolvedCvc.length < 3) {
+      setFormError('Enter the 3-digit security code (CVC).');
       return;
     }
 
     setPaying(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setPaying(false);
-    onPay();
+    try {
+      await new Promise((r) => setTimeout(r, 900));
+      onPay();
+    } finally {
+      setPaying(false);
+    }
   };
 
   return (
@@ -122,13 +148,18 @@ export function StripePaymentScreen({ order, customer, onBack, onPay }: Props) {
           <Text style={styles.fieldLabel}>Card number</Text>
           <View style={styles.inputRow}>
             <TextInput
+              ref={cardRef}
               style={styles.input}
               placeholder="1234 1234 1234 1234"
               placeholderTextColor="#aab0bc"
               value={cardNumber}
-              onChangeText={(v) => setCardNumber(formatCardNumber(v))}
+              onChangeText={(v) => {
+                setCardNumber(formatCardNumber(v));
+                if (formError) setFormError(null);
+              }}
               keyboardType="number-pad"
               maxLength={19}
+              autoComplete="cc-number"
             />
             <Text style={styles.cardBrand}>💳</Text>
           </View>
@@ -138,26 +169,36 @@ export function StripePaymentScreen({ order, customer, onBack, onPay }: Props) {
           <View style={[styles.fieldGroup, styles.fieldHalf]}>
             <Text style={styles.fieldLabel}>Expiry</Text>
             <TextInput
+              ref={expiryRef}
               style={styles.input}
               placeholder="MM / YY"
               placeholderTextColor="#aab0bc"
               value={expiry}
-              onChangeText={(v) => setExpiry(formatExpiry(v))}
+              onChangeText={(v) => {
+                setExpiry(formatExpiry(v));
+                if (formError) setFormError(null);
+              }}
               keyboardType="number-pad"
               maxLength={5}
+              autoComplete="cc-exp"
             />
           </View>
           <View style={[styles.fieldGroup, styles.fieldHalf]}>
             <Text style={styles.fieldLabel}>CVC</Text>
             <TextInput
+              ref={cvcRef}
               style={styles.input}
               placeholder="123"
               placeholderTextColor="#aab0bc"
               value={cvc}
-              onChangeText={(v) => setCvc(v.replace(/\D/g, '').slice(0, 4))}
+              onChangeText={(v) => {
+                setCvc(v.replace(/\D/g, '').slice(0, 4));
+                if (formError) setFormError(null);
+              }}
               keyboardType="number-pad"
               maxLength={4}
               secureTextEntry
+              autoComplete="cc-csc"
             />
           </View>
         </View>
@@ -180,13 +221,18 @@ export function StripePaymentScreen({ order, customer, onBack, onPay }: Props) {
           </Text>
         </View>
 
-        <View style={styles.testHint}>
-          <Text style={styles.testHintTitle}>Test card</Text>
+        <TouchableOpacity style={styles.testHint} onPress={fillTestCard} activeOpacity={0.85}>
+          <Text style={styles.testHintTitle}>Test card · tap to fill</Text>
           <Text style={styles.testHintText}>4242 4242 4242 4242 · 12/34 · 123</Text>
-        </View>
+        </TouchableOpacity>
       </ScrollView>
 
       <SafeAreaView edges={['bottom']} style={styles.footer}>
+        {formError ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{formError}</Text>
+          </View>
+        ) : null}
         <TouchableOpacity
           style={[styles.payBtn, paying && styles.payBtnDisabled]}
           onPress={() => void handlePay()}
@@ -377,6 +423,22 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#e6ebf1',
+  },
+  errorBanner: {
+    marginBottom: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  errorText: {
+    color: '#b91c1c',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    textAlign: 'center',
   },
   payBtn: {
     backgroundColor: STRIPE_PURPLE,

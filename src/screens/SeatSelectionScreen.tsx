@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { PosterImage } from '../components/PosterImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +15,18 @@ import { getShowItemById } from '../data/catalog';
 import type { SelectedSession } from '../data/showtimes';
 import type { CheckoutOrder } from '../data/checkout';
 import { formatFromSession } from '../lib/api';
-import { buildHallLayout, SEAT_COLORS, type CinemaSeat } from '../data/seats';
+import { SEAT_COLORS } from '../data/seats';
+import {
+  fetchSeatLayout,
+  type CinemaSeat,
+  type SeatRow,
+  type SeatZone,
+} from '../lib/seatsApi';
+
+const DEFAULT_ZONES: SeatZone[] = [
+  { category: 'good', name: 'GOOD', price: 19 },
+  { category: 'superlux', name: 'SUPER LUX', price: 30 },
+];
 
 interface Props {
   itemId: string;
@@ -28,8 +40,41 @@ const SEAT_GAP = 4;
 
 export function SeatSelectionScreen({ itemId, session, onBack, onCheckout }: Props) {
   const item = getShowItemById(itemId);
-  const layout = useMemo(() => buildHallLayout(), []);
+  const [layout, setLayout] = useState<SeatRow[]>([]);
+  const [zones, setZones] = useState<SeatZone[]>(DEFAULT_ZONES);
+  const [colors, setColors] = useState(SEAT_COLORS);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setSelected(new Set());
+    (async () => {
+      try {
+        const data = await fetchSeatLayout({
+          itemId,
+          dateLabel: session.dateLabel,
+          time: session.time,
+          hall: session.room,
+        });
+        if (!active) return;
+        setLayout(data.rows);
+        setZones(data.zones?.length ? data.zones : DEFAULT_ZONES);
+        setColors({ ...SEAT_COLORS, ...data.colors });
+      } catch {
+        if (active) {
+          setLayout([]);
+          setZones(DEFAULT_ZONES);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [itemId, session.dateLabel, session.time, session.room]);
 
   if (!item) return null;
 
@@ -53,7 +98,13 @@ export function SeatSelectionScreen({ itemId, session, onBack, onCheckout }: Pro
     return sum;
   }, [layout, selected]);
 
-  const maxCols = 18;
+  const maxCols = useMemo(() => {
+    let max = 0;
+    for (const row of layout) {
+      max = Math.max(max, row.seats.length);
+    }
+    return max || 18;
+  }, [layout]);
 
   return (
     <View style={styles.container}>
@@ -89,7 +140,6 @@ export function SeatSelectionScreen({ itemId, session, onBack, onCheckout }: Pro
           </View>
         </View>
 
-        {/* Session card */}
         <View style={styles.sessionCard}>
           <Text style={styles.sessionTime}>
             {session.time} - {session.endTime}
@@ -98,71 +148,76 @@ export function SeatSelectionScreen({ itemId, session, onBack, onCheckout }: Pro
           <Text style={styles.sessionDate}>{session.dateLabel}</Text>
         </View>
 
-        {/* Screen */}
         <View style={styles.screenWrap}>
           <View style={styles.screenLine} />
           <Text style={styles.screenLabel}>Screen</Text>
         </View>
 
-        {/* Seat map */}
-        <View style={styles.map}>
-          {layout.map((row) => (
-            <View key={row.row} style={styles.seatRow}>
-              <Text style={styles.rowNum}>{row.row}</Text>
-              <View style={[styles.seatRowInner, { maxWidth: maxCols * (SEAT_SIZE + SEAT_GAP) }]}>
-                {row.seats.map((seat, i) => {
-                  if (!seat) {
-                    return <View key={`gap-${row.row}-${i}`} style={styles.aisle} />;
-                  }
-                  const isSelected = selected.has(seat.id);
-                  const bg = seat.sold
-                    ? SEAT_COLORS.sold
-                    : seat.category === 'superlux'
-                      ? isSelected
-                        ? SEAT_COLORS.superluxSelected
-                        : SEAT_COLORS.superlux
-                      : isSelected
-                        ? SEAT_COLORS.goodSelected
-                        : SEAT_COLORS.good;
-
-                  return (
-                    <TouchableOpacity
-                      key={seat.id}
-                      onPress={() => toggleSeat(seat)}
-                      disabled={seat.sold}
-                      activeOpacity={0.75}
-                      style={[
-                        styles.seat,
-                        { backgroundColor: bg },
-                        isSelected && styles.seatSelected,
-                      ]}
-                    >
-                      {seat.sold && <Text style={styles.soldX}>✕</Text>}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* Legend */}
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendSwatch, { backgroundColor: SEAT_COLORS.good }]} />
-            <View>
-              <Text style={styles.legendName}>GOOD</Text>
-              <Text style={styles.legendPrice}>$19</Text>
-            </View>
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={Colors.red} />
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendSwatch, { backgroundColor: SEAT_COLORS.superlux }]} />
-            <View>
-              <Text style={styles.legendName}>SUPER LUX</Text>
-              <Text style={styles.legendPrice}>$30</Text>
+        ) : (
+          <>
+            <View style={styles.map}>
+              {layout.map((row) => (
+                <View key={row.row} style={styles.seatRow}>
+                  <Text style={styles.rowNum}>{row.row}</Text>
+                  <View style={[styles.seatRowInner, { maxWidth: maxCols * (SEAT_SIZE + SEAT_GAP) }]}>
+                    {row.seats.map((seat, i) => {
+                      if (!seat) {
+                        return <View key={`gap-${row.row}-${i}`} style={styles.aisle} />;
+                      }
+                      const isSelected = selected.has(seat.id);
+                      const bg = seat.sold
+                        ? colors.sold
+                        : seat.category === 'superlux'
+                          ? isSelected
+                            ? colors.superluxSelected
+                            : colors.superlux
+                          : isSelected
+                            ? colors.goodSelected
+                            : colors.good;
+
+                      return (
+                        <TouchableOpacity
+                          key={seat.id}
+                          onPress={() => toggleSeat(seat)}
+                          disabled={seat.sold}
+                          activeOpacity={0.75}
+                          style={[
+                            styles.seat,
+                            { backgroundColor: bg },
+                            isSelected && styles.seatSelected,
+                          ]}
+                        >
+                          {seat.sold && <Text style={styles.soldX}>✕</Text>}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
             </View>
-          </View>
-        </View>
+
+            <View style={styles.legend}>
+              {zones.map((zone) => (
+                <View key={zone.category} style={styles.legendItem}>
+                  <View
+                    style={[
+                      styles.legendSwatch,
+                      { backgroundColor: colors[zone.category] ?? zone.color },
+                    ]}
+                  />
+                  <View>
+                    <Text style={styles.legendName}>{zone.name}</Text>
+                    <Text style={styles.legendPrice}>${zone.price}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {selected.size > 0 && (
@@ -195,6 +250,7 @@ export function SeatSelectionScreen({ itemId, session, onBack, onCheckout }: Pro
                 format: formatFromSession(session.formats),
                 session,
                 seats,
+                zones,
                 seatCount: seats.length,
                 total,
               });
@@ -238,6 +294,10 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 24 },
+  loadingWrap: {
+    paddingVertical: 48,
+    alignItems: 'center',
+  },
   venueTitle: {
     fontSize: 22,
     fontWeight: '800',

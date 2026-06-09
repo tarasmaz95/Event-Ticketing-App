@@ -7,9 +7,12 @@ import {
   Modal,
   Pressable,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
+
+const menuLogo = require('../../assets/splash-avatar.png');
 
 const MENU_ITEMS = [
   { key: 'events', label: 'Events' },
@@ -49,9 +52,11 @@ export function SideMenu({ visible, onClose, onEvents, onReturns, userName = 'Gu
         <View style={styles.panel}>
           <SafeAreaView edges={['top', 'bottom']} style={styles.panelSafe}>
             <View style={styles.logoWrap}>
+              <Image source={menuLogo} style={styles.logoAvatar} resizeMode="contain" />
               <View style={styles.logoShape}>
-                <Text style={styles.logoText}>Your Brand</Text>
+                <Text style={styles.logoText}>Chibuzor Okoye</Text>
               </View>
+              <Text style={styles.logoTagline}>Events & Tickets</Text>
             </View>
 
             <Text style={styles.greeting}>Hi, {userName}!</Text>
@@ -109,6 +114,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 20,
   },
+  logoAvatar: {
+    width: 88,
+    height: 88,
+    marginBottom: 14,
+  },
   logoShape: {
     backgroundColor: Colors.red,
     paddingHorizontal: 20,
@@ -122,6 +132,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1,
     transform: [{ skewX: '8deg' }],
+  },
+  logoTagline: {
+    marginTop: 10,
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textMuted,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   greeting: {
     fontSize: 17,

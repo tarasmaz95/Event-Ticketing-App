@@ -5,8 +5,22 @@ function img(id: string): string {
   return `https://images.unsplash.com/${id}${Q}`;
 }
 
+type LocalAsset = number | { uri: string };
+
+function localImg(asset: LocalAsset): string {
+  if (typeof asset === 'object' && asset.uri) {
+    return asset.uri;
+  }
+
+  const { Image } = require('react-native') as typeof import('react-native');
+  return Image.resolveAssetSource(asset).uri;
+}
+
 export const IMAGES = {
-  // Concerts
+  // Concerts — Chibuzor Okoye
+  chibuzorLead: localImg(require('../../assets/concert-chibuzor-1.png')),
+  chibuzorKeynote: localImg(require('../../assets/concert-chibuzor-2.png')),
+  chibuzorImpact: localImg(require('../../assets/concert-chibuzor-3.png')),
   concertCrowd: img('photo-1470229722913-7c0e2dbbafd3'),
   concertSinger: img('photo-1493225457124-a3eb161ffa5f'),
   concertFestival: img('photo-1514525253161-7a46d19cd819'),

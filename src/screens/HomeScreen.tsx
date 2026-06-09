@@ -17,10 +17,10 @@ import { getItemsByCategory, getComingSoonShowItems } from '../data/catalog';
 import type { ShowItem } from '../data/catalog';
 import type { CategoryKey } from '../data/events';
 import {
-  DEFAULT_LOCATION,
+  getDefaultLocation,
   getLocationLabel,
   type SelectedLocation,
-} from '../data/locations';
+} from '../lib/locationsApi';
 import { LocationPickerScreen } from './LocationPickerScreen';
 import { SideMenu } from '../components/SideMenu';
 import { fetchTickets, type SavedTicket } from '../lib/api';
@@ -141,7 +141,7 @@ export function HomeScreen({
 }: Props) {
   const [category, setCategory] = useState<CategoryKey>('home');
   const [activeTab, setActiveTab] = useState<HomeTab>(initialTab);
-  const [location, setLocation] = useState<SelectedLocation>(DEFAULT_LOCATION);
+  const [location, setLocation] = useState<SelectedLocation>(getDefaultLocation());
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tickets, setTickets] = useState<SavedTicket[]>([]);
@@ -190,7 +190,12 @@ export function HomeScreen({
   }, [catalogItems, searchQuery]);
 
   if (showReturns) {
-    return <TicketReturnsScreen onBack={() => setShowReturns(false)} />;
+    return (
+      <TicketReturnsScreen
+        onBack={() => setShowReturns(false)}
+        onReturned={() => void loadTickets()}
+      />
+    );
   }
 
   if (showLocationPicker) {

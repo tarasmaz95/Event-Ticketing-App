@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,21 @@ import {
   TextInput,
   TouchableOpacity,
   StatusBar,
-  Alert,
   Platform,
 } from 'react-native';
+import type { TextInput as TextInputType } from 'react-native';
+import { readWebInputValue } from '../lib/formUtils';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
 import type { CheckoutOrder, OrderSeat } from '../data/checkout';
 import { getShowItemById } from '../data/catalog';
 import { SEAT_COLORS } from '../data/seats';
+import type { SeatZone } from '../lib/seatsApi';
+
+const DEFAULT_ZONES: SeatZone[] = [
+  { category: 'good', name: 'GOOD', price: 19 },
+  { category: 'superlux', name: 'SUPER LUX', price: 30 },
+];
 
 export interface CheckoutCustomer {
   name: string;
@@ -47,6 +54,7 @@ function formatTimer(secs: number): string {
 
 export function CheckoutScreen({ order, onBack, onPay }: Props) {
   const item = getShowItemById(order.itemId);
+  const zones = order.zones?.length ? order.zones : DEFAULT_ZONES;
   const [seats, setSeats] = useState<OrderSeat[]>(order.seats);
   const [timer, setTimer] = useState(7 * 60 + 23);
   const [name, setName] = useState('');
@@ -55,6 +63,11 @@ export function CheckoutScreen({ order, onBack, onPay }: Props) {
   const phone = formatPhoneDisplay(phoneDigits);
   const [agreeRules, setAgreeRules] = useState(false);
   const [agreeRefund, setAgreeRefund] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const nameRef = useRef<TextInputType>(null);
+  const emailRef = useRef<TextInputType>(null);
+  const phoneRef = useRef<TextInputType>(null);
 
   const total = useMemo(() => seats.reduce((sum, s) => sum + s.price, 0), [seats]);
 
@@ -74,19 +87,37 @@ export function CheckoutScreen({ order, onBack, onPay }: Props) {
   };
 
   const submit = () => {
+    setFormError(null);
+
+    const resolvedName = (name.trim() || readWebInputValue(nameRef)).trim();
+    const resolvedEmail = (email.trim() || readWebInputValue(emailRef)).trim();
+    const resolvedPhoneDigits =
+      phoneDigits.length >= 10
+        ? phoneDigits
+        : extractPhoneDigits(readWebInputValue(phoneRef) || phone);
+
     if (seats.length === 0) {
-      Alert.alert('No seats', 'Please select at least one seat.');
+      setFormError('Please select at least one seat.');
       return;
     }
-    if (!name.trim() || !email.trim() || phoneDigits.length < 10) {
-      Alert.alert('Missing fields', 'Please enter your name, email, and phone number.');
+    if (!resolvedName || !resolvedEmail || resolvedPhoneDigits.length < 10) {
+      setFormError('Please enter your name, email, and a 10-digit phone number.');
+      return;
+    }
+    if (!resolvedEmail.includes('@') || !resolvedEmail.includes('.')) {
+      setFormError('Please enter a valid email address (e.g. name@example.com).');
       return;
     }
     if (!agreeRules || !agreeRefund) {
-      Alert.alert('Terms required', 'Please accept both terms to continue.');
+      setFormError('Please accept both terms and conditions to continue.');
       return;
     }
-    onPay({ name: name.trim(), email: email.trim(), phone });
+
+    onPay({
+      name: resolvedName,
+      email: resolvedEmail,
+      phone: formatPhoneDisplay(resolvedPhoneDigits),
+    });
   };
 
   return (
@@ -114,20 +145,20 @@ export function CheckoutScreen({ order, onBack, onPay }: Props) {
       >
         {/* Seat legend */}
         <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendSwatch, { backgroundColor: SEAT_COLORS.good }]} />
-            <View>
-              <Text style={styles.legendName}>GOOD</Text>
-              <Text style={styles.legendPrice}>$19</Text>
+          {zones.map((zone) => (
+            <View key={zone.category} style={styles.legendItem}>
+              <View
+                style={[
+                  styles.legendSwatch,
+                  { backgroundColor: SEAT_COLORS[zone.category] ?? zone.color },
+                ]}
+              />
+              <View>
+                <Text style={styles.legendName}>{zone.name}</Text>
+                <Text style={styles.legendPrice}>${zone.price}</Text>
+              </View>
             </View>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendSwatch, { backgroundColor: SEAT_COLORS.superlux }]} />
-            <View>
-              <Text style={styles.legendName}>SUPER LUX</Text>
-              <Text style={styles.legendPrice}>$30</Text>
-            </View>
-          </View>
+          ))}
         </View>
 
         <View style={styles.divider} />
@@ -173,30 +204,44 @@ export function CheckoutScreen({ order, onBack, onPay }: Props) {
         <View style={styles.divider} />
 
         <TextInput
+          ref={nameRef}
           style={styles.input}
           placeholder="Full name"
           placeholderTextColor="#aaa"
           value={name}
-          onChangeText={setName}
+          onChangeText={(v) => {
+            setName(v);
+            if (formError) setFormError(null);
+          }}
+          autoComplete="name"
         />
         <TextInput
+          ref={emailRef}
           style={styles.input}
           placeholder="Email"
           placeholderTextColor="#aaa"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(v) => {
+            setEmail(v);
+            if (formError) setFormError(null);
+          }}
           keyboardType="email-address"
           autoCapitalize="none"
+          autoComplete="email"
         />
 
         <View style={styles.phoneWrap}>
           <Text style={styles.phoneLabel}>Phone number</Text>
           <TextInput
+            ref={phoneRef}
             style={styles.phoneInput}
             placeholder="(555) 123-4567"
             placeholderTextColor="#aaa"
             value={phone}
-            onChangeText={(v) => setPhoneDigits(extractPhoneDigits(v))}
+            onChangeText={(v) => {
+              setPhoneDigits(extractPhoneDigits(v));
+              if (formError) setFormError(null);
+            }}
             keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
             inputMode={Platform.OS === 'web' ? 'tel' : undefined}
             autoComplete="tel"
@@ -208,7 +253,10 @@ export function CheckoutScreen({ order, onBack, onPay }: Props) {
 
         <TouchableOpacity
           style={styles.checkRow}
-          onPress={() => setAgreeRules((v) => !v)}
+          onPress={() => {
+            setAgreeRules((v) => !v);
+            if (formError) setFormError(null);
+          }}
           activeOpacity={0.8}
         >
           <View style={[styles.checkbox, agreeRules && styles.checkboxOn]}>
@@ -222,7 +270,10 @@ export function CheckoutScreen({ order, onBack, onPay }: Props) {
 
         <TouchableOpacity
           style={styles.checkRow}
-          onPress={() => setAgreeRefund((v) => !v)}
+          onPress={() => {
+            setAgreeRefund((v) => !v);
+            if (formError) setFormError(null);
+          }}
           activeOpacity={0.8}
         >
           <View style={[styles.checkbox, agreeRefund && styles.checkboxOn]}>
@@ -238,6 +289,11 @@ export function CheckoutScreen({ order, onBack, onPay }: Props) {
       </ScrollView>
 
       <SafeAreaView edges={['bottom']} style={styles.footer}>
+        {formError ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{formError}</Text>
+          </View>
+        ) : null}
         <TouchableOpacity style={styles.submitBtn} onPress={submit} activeOpacity={0.88}>
           <Text style={styles.submitText}>Next</Text>
         </TouchableOpacity>
@@ -446,6 +502,23 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderTopWidth: 1,
     borderTopColor: '#eee',
+  },
+  errorBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  errorText: {
+    color: Colors.red,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    textAlign: 'center',
   },
   submitBtn: {
     marginHorizontal: 16,

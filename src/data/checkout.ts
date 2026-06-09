@@ -1,5 +1,6 @@
 import type { SeatCategory } from './seats';
 import type { SelectedSession } from './showtimes';
+import type { SeatZone } from '../lib/seatsApi';
 
 export interface OrderSeat {
   id: string;
@@ -16,6 +17,7 @@ export interface CheckoutOrder {
   format: string;
   session: SelectedSession;
   seats: OrderSeat[];
+  zones?: SeatZone[];
   seatCount: number;
   total: number;
 }

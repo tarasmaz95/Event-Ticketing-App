@@ -1,6 +1,12 @@
-import { movies, getMovieById } from './movies';
-import { events, getEventById, type CategoryKey } from './events';
-import { comingSoonItems, getComingSoonById } from './comingSoon';
+import type { CategoryKey } from './events';
+import {
+  getCatalogComingSoon,
+  getCatalogComingSoonById,
+  getCatalogEventById,
+  getCatalogEventsByCategory,
+  getCatalogMovieById,
+  getCatalogMovies,
+} from '../lib/catalogApi';
 
 export interface ShowItem {
   id: string;
@@ -28,7 +34,20 @@ const CATEGORY_LABELS: Record<string, string> = {
   standup: 'Stand-Up',
 };
 
-function movieToShowItem(m: (typeof movies)[0]): ShowItem {
+function movieToShowItem(m: {
+  id: string;
+  title: string;
+  originalTitle: string;
+  imageUrl: string;
+  ageRating: string;
+  formats: string;
+  rating: number;
+  nextSessionDate: string;
+  duration: string;
+  genres: string;
+  description: string;
+  releaseDate: string;
+}): ShowItem {
   return {
     id: m.id,
     kind: 'movie',
@@ -46,7 +65,18 @@ function movieToShowItem(m: (typeof movies)[0]): ShowItem {
   };
 }
 
-function eventToShowItem(e: (typeof events)[0]): ShowItem {
+function eventToShowItem(e: {
+  id: string;
+  category: string;
+  title: string;
+  venue: string;
+  date: string;
+  time: string;
+  priceFrom: number;
+  priceTo: number;
+  imageUrl: string;
+  description?: string;
+}): ShowItem {
   const label = CATEGORY_LABELS[e.category] ?? 'Event';
   return {
     id: e.id,
@@ -60,7 +90,9 @@ function eventToShowItem(e: (typeof events)[0]): ShowItem {
     nextSessionDate: `${e.date.toUpperCase()} · ${e.time}`,
     duration: e.category === 'theater' ? '2h 30m' : '2h',
     genres: label,
-    description: `${e.title} — an unforgettable ${label.toLowerCase()} experience at ${e.venue}. Don't miss the live atmosphere and world-class performance.`,
+    description:
+      e.description ||
+      `${e.title} — an unforgettable ${label.toLowerCase()} experience at ${e.venue}.`,
     releaseDate: `${e.date} · ${e.time}`,
     venue: e.venue,
     priceFrom: e.priceFrom,
@@ -68,7 +100,22 @@ function eventToShowItem(e: (typeof events)[0]): ShowItem {
   };
 }
 
-function comingSoonToShowItem(item: (typeof comingSoonItems)[0]): ShowItem {
+function comingSoonToShowItem(item: {
+  id: string;
+  kind: 'movie' | 'event';
+  title: string;
+  originalTitle: string;
+  imageUrl: string;
+  ageRating: string;
+  formats: string;
+  rating: number;
+  nextSessionDate: string;
+  duration: string;
+  genres: string;
+  description: string;
+  releaseDate: string;
+  venue?: string;
+}): ShowItem {
   return {
     id: item.id,
     kind: item.kind,
@@ -88,25 +135,25 @@ function comingSoonToShowItem(item: (typeof comingSoonItems)[0]): ShowItem {
 }
 
 export function getShowItemById(id: string): ShowItem | undefined {
-  const movie = getMovieById(id);
+  const movie = getCatalogMovieById(id);
   if (movie) return movieToShowItem(movie);
-  const event = getEventById(id);
+  const event = getCatalogEventById(id);
   if (event) return eventToShowItem(event);
-  const soon = getComingSoonById(id);
+  const soon = getCatalogComingSoonById(id);
   if (soon) return comingSoonToShowItem(soon);
   return undefined;
 }
 
 export function getComingSoonShowItems(): ShowItem[] {
-  return comingSoonItems.map(comingSoonToShowItem);
+  return getCatalogComingSoon().map(comingSoonToShowItem);
 }
 
 export function getItemsByCategory(category: CategoryKey): ShowItem[] {
-  if (category === 'cinema') return movies.map(movieToShowItem);
+  if (category === 'cinema') return getCatalogMovies().map(movieToShowItem);
   if (category === 'home') {
-    const topEvents = events.filter((e) => e.top).map(eventToShowItem);
-    const featuredMovies = movies.slice(0, 2).map(movieToShowItem);
+    const topEvents = getCatalogEventsByCategory('home').map(eventToShowItem);
+    const featuredMovies = getCatalogMovies().slice(0, 2).map(movieToShowItem);
     return [...topEvents, ...featuredMovies];
   }
-  return events.filter((e) => e.category === category).map(eventToShowItem);
+  return getCatalogEventsByCategory(category).map(eventToShowItem);
 }

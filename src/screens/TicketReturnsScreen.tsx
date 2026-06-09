@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
-import { fetchTickets } from '../lib/api';
-import { returnTicketsByOrderKey } from '../lib/mockStore';
+import { fetchTickets, returnOrder } from '../lib/api';
 import type { SavedTicket } from '../types/ticket';
 
 const RETURN_REASONS = ['Personal reasons', 'Other'] as const;
@@ -23,13 +22,7 @@ type ReturnReason = (typeof RETURN_REASONS)[number];
 interface ReturnOrder {
   id: string;
   label: string;
-  isDemo?: boolean;
 }
-
-const DEMO_ORDERS: ReturnOrder[] = [
-  { id: 'demo-neon-pulse', label: 'Neon Pulse World Tour · 2 tickets', isDemo: true },
-  { id: 'demo-hamlet', label: 'Hamlet · 1 ticket', isDemo: true },
-];
 
 function groupTicketsIntoOrders(tickets: SavedTicket[]): ReturnOrder[] {
   const groups = new Map<string, SavedTicket[]>();
@@ -58,9 +51,10 @@ interface SelectAnchor {
 
 interface Props {
   onBack: () => void;
+  onReturned?: () => void;
 }
 
-export function TicketReturnsScreen({ onBack }: Props) {
+export function TicketReturnsScreen({ onBack, onReturned }: Props) {
   const selectRef = useRef<View>(null);
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<ReturnOrder[]>([]);
@@ -78,10 +72,9 @@ export function TicketReturnsScreen({ onBack }: Props) {
       try {
         const tickets = await fetchTickets();
         if (!active) return;
-        const grouped = groupTicketsIntoOrders(tickets);
-        setOrders(grouped.length ? grouped : DEMO_ORDERS);
+        setOrders(groupTicketsIntoOrders(tickets));
       } catch {
-        if (active) setOrders(DEMO_ORDERS);
+        if (active) setOrders([]);
       } finally {
         if (active) setLoading(false);
       }
@@ -117,14 +110,19 @@ export function TicketReturnsScreen({ onBack }: Props) {
   const handleConfirmReturn = async () => {
     if (!selectedOrderId || !selectedReason) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 600));
-    const order = orders.find((o) => o.id === selectedOrderId);
-    if (order && !order.isDemo) {
-      returnTicketsByOrderKey(selectedOrderId);
+    try {
+      const result = await returnOrder(selectedOrderId, selectedReason);
+      if (!result.ok) {
+        throw new Error(result.error || 'Could not return tickets');
+      }
+      onReturned?.();
+      setConfirmOpen(false);
+      setStep('success');
+    } catch {
+      setConfirmOpen(false);
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
-    setConfirmOpen(false);
-    setStep('success');
   };
 
   if (step === 'success') {
@@ -171,12 +169,17 @@ export function TicketReturnsScreen({ onBack }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {orders.length === 0 ? (
+            <Text style={styles.emptyText}>No tickets available for return.</Text>
+          ) : null}
+
           <Text style={styles.fieldLabel}>ORDER</Text>
           <View ref={selectRef} collapsable={false}>
             <TouchableOpacity
               style={[styles.selectField, pickerOpen && styles.selectFieldOpen]}
-              onPress={togglePicker}
+              onPress={orders.length ? togglePicker : undefined}
               activeOpacity={0.8}
+              disabled={orders.length === 0}
             >
               <Text style={[styles.selectText, !selectedOrder && styles.selectPlaceholder]}>
                 {selectedOrder?.label ?? 'Select order'}
@@ -324,6 +327,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 24,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 20,
+    marginTop: 12,
   },
   fieldLabel: {
     fontSize: 12,

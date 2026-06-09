@@ -8,7 +8,9 @@ let editingId = null;
 let viewingOrderId = null;
 let formSections = [];
 let formHallMap = null;
+let formPosterImage = null;
 let pendingReturn = null;
+let pendingDelete = null;
 
 const root = document.getElementById('app');
 const toastEl = document.getElementById('toast');
@@ -17,6 +19,67 @@ function showToast(message) {
   toastEl.textContent = message;
   toastEl.classList.add('show');
   setTimeout(() => toastEl.classList.remove('show'), 2400);
+}
+
+function openImageLightbox(src, title = '') {
+  const modal = document.getElementById('image-lightbox');
+  const img = document.getElementById('image-lightbox-img');
+  const caption = document.getElementById('image-lightbox-caption');
+  if (!modal || !img || !src) return;
+  img.src = src;
+  img.alt = title || 'Full image';
+  if (caption) {
+    caption.textContent = title;
+    caption.hidden = !title;
+  }
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeImageLightbox() {
+  const modal = document.getElementById('image-lightbox');
+  const img = document.getElementById('image-lightbox-img');
+  if (!modal) return;
+  modal.hidden = true;
+  if (img) img.src = '';
+  document.body.style.overflow = '';
+}
+
+function bindImagePreviewLightbox() {
+  document.querySelectorAll('.image-preview-clickable').forEach((el) => {
+    if (el.dataset.lightboxBound === '1') return;
+    el.dataset.lightboxBound = '1';
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('title', 'Click to view full image');
+
+    const open = () => {
+      const img = el.querySelector('img');
+      if (img?.src && img.style.display !== 'none') {
+        openImageLightbox(img.src, el.dataset.previewTitle || 'Preview');
+      }
+    };
+
+    el.addEventListener('click', open);
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        open();
+      }
+    });
+  });
+}
+
+function bindImageLightboxModal() {
+  document.getElementById('image-lightbox-close')?.addEventListener('click', closeImageLightbox);
+  document.getElementById('image-lightbox')?.addEventListener('click', (e) => {
+    if (e.target.id === 'image-lightbox') closeImageLightbox();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('image-lightbox')?.hidden) {
+      closeImageLightbox();
+    }
+  });
 }
 
 function openEdit(id) {
@@ -33,6 +96,8 @@ function openEdit(id) {
     formSections = [{ id: AdminStore.uid(), name: 'Section A', price: 99 }];
   }
   formHallMap = event.hallMapImage ?? null;
+  formPosterImage =
+    event.imageUrl && event.imageUrl.startsWith('data:') ? event.imageUrl : null;
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -46,6 +111,7 @@ function navigate(next, id = null) {
       { id: AdminStore.uid(), name: 'Section B', price: 69 },
     ];
     formHallMap = null;
+    formPosterImage = null;
   }
   if (next === 'edit' && id) {
     openEdit(id);
@@ -508,10 +574,17 @@ function renderEventsList() {
               return `
                 <tr class="event-row" data-event-id="${e.id}">
                   <td>
+                    <div style="display:flex;gap:12px;align-items:flex-start">
+                      ${e.imageUrl
+                        ? `<img src="${escapeAttr(e.imageUrl)}" alt="" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#f3f4f6" />`
+                        : '<div style="width:52px;height:52px;border-radius:8px;background:#f3f4f6;flex-shrink:0"></div>'}
+                      <div>
                     <button type="button" class="event-title-btn" data-edit="${e.id}">
                       <strong>${escapeHtml(e.title)}</strong>
                     </button>
                     <div style="color:var(--muted);font-size:13px;margin-top:4px">${escapeHtml(e.description).slice(0, 80)}${e.description.length > 80 ? '…' : ''}</div>
+                      </div>
+                    </div>
                   </td>
                   <td><span class="badge">${escapeHtml(formatCategoryLabel(e.category))}</span></td>
                   <td>${escapeHtml(e.venue)}</td>
@@ -579,6 +652,43 @@ function renderEventForm(isEdit) {
         </div>
       </div>
 
+      <h3 style="margin:28px 0 16px;font-size:18px">Cover image</h3>
+      <p style="color:var(--muted);font-size:14px;margin:-8px 0 14px">
+        Poster shown in the app listing and event page. Paste a URL or upload an image.
+      </p>
+      <div class="field full">
+        <label for="image-url">Image URL</label>
+        <input
+          id="image-url"
+          name="imageUrl"
+          type="url"
+          placeholder="https://example.com/poster.jpg"
+          value="${event?.imageUrl && !event.imageUrl.startsWith('data:') ? escapeAttr(event.imageUrl) : ''}"
+        />
+      </div>
+      <div class="field full">
+        <label>Or upload cover image</label>
+        <div class="upload-zone" id="poster-upload-zone">
+          <div style="font-size:28px">🖼️</div>
+          <strong>Click or drag poster here</strong>
+          <p>PNG or JPG, up to 3 MB. Used as the event cover in the app.</p>
+          <input type="file" id="poster-input" accept="image/*" hidden />
+        </div>
+        <div
+          class="map-preview image-preview-clickable"
+          id="poster-preview"
+          data-preview-title="Cover image"
+          style="${formPosterImage || (event?.imageUrl && !event.imageUrl.startsWith('data:')) ? '' : 'display:none'}"
+        >
+          ${formPosterImage
+            ? `<img src="${formPosterImage}" alt="Poster preview" />`
+            : event?.imageUrl && !event.imageUrl.startsWith('data:')
+              ? `<img src="${escapeAttr(event.imageUrl)}" alt="Poster preview" />`
+              : ''}
+        </div>
+        ${formPosterImage ? '<button type="button" class="btn btn-ghost" id="remove-poster" style="margin-top:10px">Remove uploaded image</button>' : ''}
+      </div>
+
       <h3 style="margin:28px 0 16px;font-size:18px">Hall map</h3>
       <div class="field full">
         <label>Upload venue / stadium map</label>
@@ -588,7 +698,12 @@ function renderEventForm(isEdit) {
           <p>PNG or JPG, up to 3 MB. Used for seat zone reference.</p>
           <input type="file" id="hall-map-input" accept="image/*" hidden />
         </div>
-        <div class="map-preview" id="map-preview" style="${formHallMap ? '' : 'display:none'}">
+        <div
+          class="map-preview image-preview-clickable"
+          id="map-preview"
+          data-preview-title="Hall map"
+          style="${formHallMap ? '' : 'display:none'}"
+        >
           ${formHallMap ? `<img src="${formHallMap}" alt="Hall map preview" />` : ''}
         </div>
         ${formHallMap ? '<button type="button" class="btn btn-ghost" id="remove-map" style="margin-top:10px">Remove map</button>' : ''}
@@ -596,7 +711,7 @@ function renderEventForm(isEdit) {
 
       <h3 style="margin:28px 0 16px;font-size:18px">Ticket zones & pricing</h3>
       <p style="color:var(--muted);font-size:14px;margin-bottom:14px">
-        Create sections like Section A, B, C — each with its own price.
+        Zone names and prices appear in the app seat map legend. The first section is used for standard seats; the second for premium row seats.
       </p>
       <div class="sections-list" id="sections-list">
         ${formSections.map((s, i) => sectionRowHtml(s, i)).join('')}
@@ -686,6 +801,7 @@ function bindFormHandlers() {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+    const urlInput = form.imageUrl?.value?.trim() ?? '';
     const payload = {
       title: form.title.value,
       description: form.description.value,
@@ -693,6 +809,7 @@ function bindFormHandlers() {
       venue: form.venue.value,
       date: form.date.value,
       time: form.time.value,
+      imageUrl: urlInput || formPosterImage || '',
       hallMapImage: formHallMap,
       sections: readSectionsFromDom().filter((s) => s.name),
     };
@@ -702,14 +819,20 @@ function bindFormHandlers() {
       return;
     }
 
-    if (editingId) {
-      AdminStore.updateEvent(editingId, payload);
-      showToast('Event updated successfully.');
-    } else {
-      AdminStore.createEvent(payload);
-      showToast('Event created successfully.');
-    }
-    navigate('events');
+    (async () => {
+      try {
+        if (editingId) {
+          await AdminStore.updateEvent(editingId, payload);
+          showToast('Event updated successfully.');
+        } else {
+          await AdminStore.createEvent(payload);
+          showToast('Event created successfully.');
+        }
+        navigate('events');
+      } catch (err) {
+        showToast(err.message || 'Could not save event.');
+      }
+    })();
   });
 
   document.getElementById('add-section')?.addEventListener('click', () => {
@@ -724,7 +847,9 @@ function bindFormHandlers() {
   });
 
   bindUpload();
+  bindPosterUpload();
   bindSectionRemove();
+  bindImagePreviewLightbox();
 
   document.getElementById('remove-map')?.addEventListener('click', () => {
     formHallMap = null;
@@ -746,6 +871,95 @@ function bindSectionRemove() {
       btn.closest('.section-row')?.remove();
     };
   });
+}
+
+function bindPosterUpload() {
+  const zone = document.getElementById('poster-upload-zone');
+  const input = document.getElementById('poster-input');
+  if (!zone || !input) return;
+
+  zone.addEventListener('click', () => input.click());
+
+  zone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    zone.classList.add('dragover');
+  });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer.files?.[0];
+    if (file) handlePosterFile(file);
+  });
+
+  input.addEventListener('change', () => {
+    const file = input.files?.[0];
+    if (file) handlePosterFile(file);
+  });
+
+  const urlField = document.getElementById('image-url');
+  urlField?.addEventListener('input', () => {
+    const url = urlField.value.trim();
+    const preview = document.getElementById('poster-preview');
+    if (!preview) return;
+    if (url) {
+      formPosterImage = null;
+      preview.style.display = 'block';
+      preview.innerHTML = `<img src="${escapeAttr(url)}" alt="Poster preview" onerror="this.style.display='none'" />`;
+      preview.dataset.lightboxBound = '';
+      bindImagePreviewLightbox();
+      document.getElementById('remove-poster')?.remove();
+    } else if (!formPosterImage) {
+      preview.style.display = 'none';
+      preview.innerHTML = '';
+    }
+  });
+
+  document.getElementById('remove-poster')?.addEventListener('click', () => {
+    formPosterImage = null;
+    const preview = document.getElementById('poster-preview');
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+    document.getElementById('remove-poster')?.remove();
+    const urlField = document.getElementById('image-url');
+    if (urlField) urlField.value = '';
+  });
+}
+
+function handlePosterFile(file) {
+  if (!file.type.startsWith('image/')) {
+    showToast('Please upload an image file.');
+    return;
+  }
+  if (file.size > 3 * 1024 * 1024) {
+    showToast('Image must be under 3 MB.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    formPosterImage = reader.result;
+    const urlField = document.getElementById('image-url');
+    if (urlField) urlField.value = '';
+    const preview = document.getElementById('poster-preview');
+    preview.style.display = 'block';
+    preview.innerHTML = `<img src="${formPosterImage}" alt="Poster preview" />`;
+    preview.dataset.lightboxBound = '';
+    bindImagePreviewLightbox();
+    if (!document.getElementById('remove-poster')) {
+      preview.insertAdjacentHTML(
+        'afterend',
+        '<button type="button" class="btn btn-ghost" id="remove-poster" style="margin-top:10px">Remove uploaded image</button>',
+      );
+      document.getElementById('remove-poster').addEventListener('click', () => {
+        formPosterImage = null;
+        preview.style.display = 'none';
+        preview.innerHTML = '';
+        document.getElementById('remove-poster')?.remove();
+      });
+    }
+    showToast('Cover image uploaded.');
+  };
+  reader.readAsDataURL(file);
 }
 
 function bindUpload() {
@@ -788,6 +1002,8 @@ function handleMapFile(file) {
     const preview = document.getElementById('map-preview');
     preview.style.display = 'block';
     preview.innerHTML = `<img src="${formHallMap}" alt="Hall map preview" />`;
+    preview.dataset.lightboxBound = '';
+    bindImagePreviewLightbox();
     if (!document.getElementById('remove-map')) {
       preview.insertAdjacentHTML('afterend', '<button type="button" class="btn btn-ghost" id="remove-map" style="margin-top:10px">Remove map</button>');
       document.getElementById('remove-map').addEventListener('click', () => {
@@ -854,15 +1070,7 @@ function bindMainActions() {
     const deleteTarget = e.target.closest('[data-delete]');
     if (deleteTarget) {
       e.preventDefault();
-      const id = deleteTarget.getAttribute('data-delete');
-      const event = AdminStore.getEventById(id);
-      if (!event) return;
-      if (confirm(`Delete "${event.title}"? This cannot be undone.`)) {
-        AdminStore.deleteEvent(id);
-        showToast('Event deleted.');
-        if (route === 'edit' && editingId === id) navigate('events');
-        else render();
-      }
+      openDeleteModal(deleteTarget.getAttribute('data-delete'));
     }
   });
 }
@@ -968,21 +1176,27 @@ function closeReturnModal() {
   document.getElementById('return-modal').hidden = true;
 }
 
-function confirmReturn() {
+async function confirmReturn() {
   if (!pendingReturn) return;
   const reason = document.getElementById('return-reason').value;
   let result;
 
-  if (pendingReturn.all) {
-    result = AdminStore.returnAllTickets(pendingReturn.orderId, reason);
-    if (result.ok) {
-      showToast(`Returned ${result.count} ticket(s) · ${AdminStore.formatMoney(result.refundAmount)} refunded.`);
+  try {
+    if (pendingReturn.all) {
+      result = await AdminStore.returnAllTickets(pendingReturn.orderId, reason);
+      if (result.ok) {
+        showToast(`Returned ${result.count} ticket(s) · ${AdminStore.formatMoney(result.refundAmount)} refunded.`);
+      }
+    } else {
+      result = await AdminStore.returnTicket(pendingReturn.orderId, pendingReturn.ticketNumber, reason);
+      if (result.ok) {
+        showToast(`Ticket #${result.ticketNumber} returned · ${AdminStore.formatMoney(result.refundAmount)} refunded.`);
+      }
     }
-  } else {
-    result = AdminStore.returnTicket(pendingReturn.orderId, pendingReturn.ticketNumber, reason);
-    if (result.ok) {
-      showToast(`Ticket #${result.ticketNumber} returned · ${AdminStore.formatMoney(result.refundAmount)} refunded.`);
-    }
+  } catch (err) {
+    closeReturnModal();
+    showToast(err.message || 'Could not process return.');
+    return;
   }
 
   closeReturnModal();
@@ -1002,6 +1216,82 @@ function bindReturnModal() {
   });
 }
 
+function openDeleteModal(id) {
+  const event = AdminStore.getEventById(id);
+  if (!event) {
+    showToast('Event not found.');
+    return;
+  }
+
+  pendingDelete = { id };
+  document.getElementById('delete-modal-title').textContent = event.title;
+  document.getElementById('delete-modal-meta').textContent =
+    `${formatCategoryLabel(event.category)} · ${event.venue || '—'}`;
+  document.getElementById('delete-modal').hidden = false;
+}
+
+function closeDeleteModal() {
+  pendingDelete = null;
+  const confirmBtn = document.getElementById('delete-modal-confirm');
+  if (confirmBtn) {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Delete event';
+  }
+  document.getElementById('delete-modal').hidden = true;
+}
+
+async function confirmDelete() {
+  if (!pendingDelete) return;
+  const { id } = pendingDelete;
+  const confirmBtn = document.getElementById('delete-modal-confirm');
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Deleting…';
+  }
+
+  try {
+    await AdminStore.deleteEvent(id);
+    closeDeleteModal();
+    showToast('Event deleted.');
+    if (route === 'edit' && editingId === id) navigate('events');
+    else render();
+  } catch (err) {
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = 'Delete event';
+    }
+    showToast(err.message || 'Could not delete event.');
+  }
+}
+
+function bindDeleteModal() {
+  document.getElementById('delete-modal-close')?.addEventListener('click', closeDeleteModal);
+  document.getElementById('delete-modal-cancel')?.addEventListener('click', closeDeleteModal);
+  document.getElementById('delete-modal-confirm')?.addEventListener('click', confirmDelete);
+  document.getElementById('delete-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'delete-modal') closeDeleteModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('delete-modal')?.hidden) {
+      closeDeleteModal();
+    }
+  });
+}
+
 bindMainActions();
 bindReturnModal();
-render();
+bindDeleteModal();
+bindImageLightboxModal();
+
+AdminStore.init()
+  .then(() => render())
+  .catch((err) => {
+    document.getElementById('main').innerHTML = `
+      <div class="page-header">
+        <div>
+          <h2>Cannot connect to API</h2>
+          <p style="color:var(--muted)">${escapeHtml(err.message || String(err))}</p>
+          <p style="margin-top:12px">Make sure the Docker API service is running.</p>
+        </div>
+      </div>`;
+  });

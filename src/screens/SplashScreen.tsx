@@ -5,21 +5,58 @@ import {
   StyleSheet,
   StatusBar,
   ActivityIndicator,
+  Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
 
+const avatar = require('../../assets/splash-avatar.png');
+
 interface Props {
   onFinish: () => void;
+  onLoad?: () => Promise<void>;
 }
 
 const SPLASH_DURATION_MS = 2200;
+const SPLASH_MAX_MS = 5000;
 
-export function SplashScreen({ onFinish }: Props) {
+const TAGLINE_FONT =
+  Platform.OS === 'web'
+    ? '"Cormorant Garamond", Georgia, "Times New Roman", serif'
+    : Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
+
+export function SplashScreen({ onFinish, onLoad }: Props) {
   useEffect(() => {
-    const timer = setTimeout(onFinish, SPLASH_DURATION_MS);
-    return () => clearTimeout(timer);
-  }, [onFinish]);
+    let cancelled = false;
+
+    const wait = async () => {
+      const minDelay = new Promise((r) => setTimeout(r, SPLASH_DURATION_MS));
+      const preload = onLoad?.().catch(() => undefined) ?? Promise.resolve();
+      const maxWait = new Promise((r) => setTimeout(r, SPLASH_MAX_MS));
+      await Promise.race([Promise.all([minDelay, preload]), maxWait]);
+      if (!cancelled) onFinish();
+    };
+
+    wait();
+    return () => {
+      cancelled = true;
+    };
+  }, [onFinish, onLoad]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href =
+      'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap';
+    document.head.appendChild(link);
+
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -27,14 +64,12 @@ export function SplashScreen({ onFinish }: Props) {
 
       <SafeAreaView style={styles.safe}>
         <View style={styles.content}>
-          <View style={styles.logoWrap}>
-            <View style={styles.ticketIcon}>
-              <Text style={styles.ticketEmoji}>🎟</Text>
-            </View>
+          <Image source={avatar} style={styles.avatar} resizeMode="contain" />
+          <View style={styles.taglineWrap}>
+            <View style={styles.taglineLine} />
+            <Text style={styles.tagline}>Events & Tickets</Text>
+            <View style={styles.taglineLine} />
           </View>
-
-          <Text style={styles.brand}>Your Brand</Text>
-          <Text style={styles.tagline}>Events & Tickets</Text>
         </View>
 
         <View style={styles.footer}>
@@ -65,35 +100,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoWrap: {
-    marginBottom: 28,
-  },
-  ticketIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.35)',
-  },
-  ticketEmoji: {
-    fontSize: 48,
-  },
-  brand: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: Colors.white,
-    letterSpacing: 0.5,
+  avatar: {
+    width: 280,
+    height: 280,
     marginBottom: 8,
   },
+  taglineWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 4,
+    paddingHorizontal: 8,
+  },
+  taglineLine: {
+    width: 28,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+  },
   tagline: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.82)',
-    letterSpacing: 1.2,
+    fontSize: 22,
+    fontWeight: '400',
+    fontFamily: TAGLINE_FONT,
+    color: 'rgba(255,255,255,0.95)',
+    letterSpacing: 3.5,
     textTransform: 'uppercase',
+    ...(Platform.OS === 'web' ? { fontStyle: 'italic' as const } : {}),
   },
   footer: {
     alignItems: 'center',

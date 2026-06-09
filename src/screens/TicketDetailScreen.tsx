@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
 import { QrCode } from '../components/QrCode';
 import type { SavedTicket } from '../lib/api';
+import { ticketCategoryLabel } from '../lib/ticketCategory';
 
 interface Props {
   ticket: SavedTicket;
@@ -42,7 +43,7 @@ export function TicketDetailScreen({ ticket, onBack }: Props) {
       </SafeAreaView>
 
       <View style={styles.body}>
-        <Text style={styles.kindLabel}>Movie</Text>
+        <Text style={styles.kindLabel}>{ticketCategoryLabel(ticket.category)}</Text>
         <Text style={styles.title}>{ticket.title}</Text>
 
         <View style={styles.qrWrap}>

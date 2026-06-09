@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,19 +6,18 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { PosterImage } from '../components/PosterImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
 import { getShowItemById } from '../data/catalog';
+import type { SelectedSession } from '../data/showtimes';
 import {
-  dateOptions,
-  getHallsForItem,
-  getShowtimeForDate,
-  isConcertItem,
+  fetchShowtimes,
   type CinemaHall,
-  type SelectedSession,
-} from '../data/showtimes';
+  type DateOption,
+} from '../lib/showtimesApi';
 
 interface Props {
   itemId: string;
@@ -28,22 +27,37 @@ interface Props {
 
 export function ShowtimesScreen({ itemId, onBack, onSessionSelect }: Props) {
   const item = getShowItemById(itemId);
-  const [selectedDate, setSelectedDate] = useState(dateOptions[0].id);
+  const [loading, setLoading] = useState(true);
+  const [dateOptions, setDateOptions] = useState<DateOption[]>([]);
+  const [selectedDate, setSelectedDate] = useState('d1');
+  const [displayHalls, setDisplayHalls] = useState<CinemaHall[]>([]);
+  const [activeDate, setActiveDate] = useState<DateOption | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    (async () => {
+      try {
+        const data = await fetchShowtimes(itemId, selectedDate);
+        if (!active) return;
+        setDateOptions(data.dates);
+        setDisplayHalls(data.halls);
+        setActiveDate(data.activeDate);
+      } catch {
+        if (active) {
+          setDateOptions([]);
+          setDisplayHalls([]);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [itemId, selectedDate]);
 
   if (!item) return null;
-
-  const halls = getHallsForItem(itemId);
-  const activeDate = dateOptions.find((d) => d.id === selectedDate) ?? dateOptions[0];
-  const concert = isConcertItem(itemId);
-
-  const displayHalls: CinemaHall[] = useMemo(() => {
-    if (!concert) return halls;
-    const showtime = getShowtimeForDate(selectedDate);
-    return halls.map((hall) => ({
-      ...hall,
-      showtimes: [showtime],
-    }));
-  }, [halls, concert, selectedDate]);
 
   return (
     <View style={styles.container}>
@@ -87,48 +101,53 @@ export function ShowtimesScreen({ itemId, onBack, onSessionSelect }: Props) {
         </View>
       </View>
 
-      {/* Cinema halls */}
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {displayHalls.map((hall) => (
-          <View key={hall.id} style={styles.hallSection}>
-            <PosterImage uri={hall.imageUrl} seed={hall.id} style={styles.hallImage} />
-            <View style={styles.hallHeader}>
-              <Text style={[styles.hallName, hall.highlighted && styles.hallNameRed]}>
-                {hall.name}
-              </Text>
-              <Text style={styles.hallAddress} numberOfLines={1}>{hall.address}</Text>
-            </View>
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={Colors.red} />
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {displayHalls.map((hall) => (
+            <View key={hall.id} style={styles.hallSection}>
+              <PosterImage uri={hall.imageUrl} seed={hall.id} style={styles.hallImage} />
+              <View style={styles.hallHeader}>
+                <Text style={[styles.hallName, hall.highlighted && styles.hallNameRed]}>
+                  {hall.name}
+                </Text>
+                <Text style={styles.hallAddress} numberOfLines={1}>{hall.address}</Text>
+              </View>
 
-            <View style={styles.timesGrid}>
-              {hall.showtimes.map((st, i) => (
-                <TouchableOpacity
-                  key={`${hall.id}-${selectedDate}-${st.time}-${i}`}
-                  style={styles.timeCell}
-                  activeOpacity={0.7}
-                  onPress={() =>
-                    onSessionSelect({
-                      hallId: hall.id,
-                      hallName: hall.name,
-                      hallFullName: hall.fullName,
-                      time: st.time,
-                      endTime: st.endTime ?? '11:25',
-                      room: st.room ?? 'Hall 2',
-                      formats: st.formats,
-                      dateLabel: activeDate.label,
-                    })
-                  }
-                >
-                  <Text style={styles.timeText}>{st.time}</Text>
-                </TouchableOpacity>
-              ))}
+              <View style={styles.timesGrid}>
+                {hall.showtimes.map((st, i) => (
+                  <TouchableOpacity
+                    key={`${hall.id}-${selectedDate}-${st.time}-${i}`}
+                    style={styles.timeCell}
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      onSessionSelect({
+                        hallId: hall.id,
+                        hallName: hall.name,
+                        hallFullName: hall.fullName,
+                        time: st.time,
+                        endTime: st.endTime ?? '11:25',
+                        room: st.room ?? 'Hall 2',
+                        formats: st.formats,
+                        dateLabel: activeDate?.label ?? '',
+                      })
+                    }
+                  >
+                    <Text style={styles.timeText}>{st.time}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
-        ))}
-      </ScrollView>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -160,13 +179,11 @@ const styles = StyleSheet.create({
     color: Colors.white,
     paddingHorizontal: 8,
   },
-
   banner: {
     width: '100%',
     height: 140,
     backgroundColor: '#ddd',
   },
-
   controlsSection: {
     flexGrow: 0,
     flexShrink: 0,
@@ -205,10 +222,14 @@ const styles = StyleSheet.create({
   dateDay: { fontSize: 13, fontWeight: '600', color: Colors.textDark, marginBottom: 2 },
   dateNum: { fontSize: 18, fontWeight: '800', color: Colors.textDark },
   dateTextActive: { color: Colors.white },
-
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 32 },
-
   hallSection: { marginBottom: 8 },
   hallImage: {
     width: '100%',
@@ -238,7 +259,6 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
   },
-
   timesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

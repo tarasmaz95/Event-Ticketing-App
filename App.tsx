@@ -3,6 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SplashScreen } from './src/screens/SplashScreen';
 import { HomeScreen, type HomeTab } from './src/screens/HomeScreen';
 import { savePurchase } from './src/lib/api';
+import { preloadApp } from './src/lib/preloadApp';
 import { MovieDetailScreen } from './src/screens/MovieDetailScreen';
 import { ShowtimesScreen } from './src/screens/ShowtimesScreen';
 import { SeatSelectionScreen } from './src/screens/SeatSelectionScreen';
@@ -48,11 +49,11 @@ export default function App() {
 
   const handlePaymentComplete = useCallback(async () => {
     if (order) {
-      await savePurchase(order);
+      await savePurchase(order, customer ?? undefined);
       setTicketsRefreshKey((k) => k + 1);
     }
     setScreen('success');
-  }, [order]);
+  }, [order, customer]);
 
   const goBack = () => {
     if (screen === 'success') resetToHome();
@@ -73,7 +74,10 @@ export default function App() {
   if (showSplash) {
     return (
       <SafeAreaProvider>
-        <SplashScreen onFinish={() => setShowSplash(false)} />
+        <SplashScreen
+          onFinish={() => setShowSplash(false)}
+          onLoad={preloadApp}
+        />
       </SafeAreaProvider>
     );
   }

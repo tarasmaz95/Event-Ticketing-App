@@ -5,6 +5,7 @@ export interface SavedTicket {
   title: string;
   image_url: string;
   format: string;
+  category: string;
   date_label: string;
   time: string;
   hall: string;

@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
-import { cities, type SelectedLocation } from '../data/locations';
+import { getCities, type SelectedLocation } from '../lib/locationsApi';
 
 interface Props {
   selected: SelectedLocation;
@@ -39,7 +39,7 @@ export function LocationPickerScreen({ selected, onSelect, onBack }: Props) {
       </SafeAreaView>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {cities.map((city) => {
+        {getCities().map((city) => {
           const isExpanded = expandedCity === city.id;
           const isSelectedCity = selected.cityId === city.id;
 
