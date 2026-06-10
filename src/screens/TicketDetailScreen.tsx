@@ -5,12 +5,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
-import { QrCode } from '../components/QrCode';
+import { BackIcon } from '../components/BackIcon';
 import type { SavedTicket } from '../lib/api';
 import { ticketCategoryLabel } from '../lib/ticketCategory';
+
+const ticketQrImage = require('../../assets/ticket-qr.png');
 
 interface Props {
   ticket: SavedTicket;
@@ -35,7 +38,7 @@ export function TicketDetailScreen({ ticket, onBack }: Props) {
       <SafeAreaView edges={['top']} style={styles.headerSafe}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-            <Text style={styles.backIcon}>←</Text>
+            <BackIcon size={26} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Tickets</Text>
           <View style={styles.backBtn} />
@@ -47,7 +50,7 @@ export function TicketDetailScreen({ ticket, onBack }: Props) {
         <Text style={styles.title}>{ticket.title}</Text>
 
         <View style={styles.qrWrap}>
-          <QrCode value={scanCode(ticket)} size={260} />
+          <Image source={ticketQrImage} style={styles.qrImage} resizeMode="contain" />
         </View>
 
         <Text style={styles.code}>{displayCode(ticket)}</Text>
@@ -87,11 +90,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: {
-    fontSize: 24,
-    color: Colors.white,
-    fontWeight: '600',
-  },
   headerTitle: {
     flex: 1,
     textAlign: 'center',
@@ -127,6 +125,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  qrImage: {
+    width: 260,
+    height: 260,
   },
   code: {
     fontSize: 18,

@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
 import { getShowItemById } from '../data/catalog';
 import { PosterImage } from '../components/PosterImage';
+import { BackIcon } from '../components/BackIcon';
 
 interface Props {
   itemId: string;
@@ -35,7 +36,7 @@ export function MovieDetailScreen({ itemId, onBack, onShowtimes }: Props) {
 
           <SafeAreaView edges={['top']} style={styles.heroHeader}>
             <TouchableOpacity onPress={onBack} style={styles.iconBtn} activeOpacity={0.7}>
-              <Text style={styles.backIcon}>←</Text>
+              <BackIcon size={26} />
             </TouchableOpacity>
             <Text style={styles.heroTitle} numberOfLines={1}>{item.title}</Text>
             <TouchableOpacity
@@ -150,11 +151,6 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backIcon: {
-    fontSize: 26,
-    color: Colors.white,
-    fontWeight: '600',
   },
   shareIcon: {
     fontSize: 22,

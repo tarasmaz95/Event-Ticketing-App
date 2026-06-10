@@ -1,4 +1,4 @@
-import { API_BASE } from './config';
+import { getApiBase } from './config';
 import { fetchWithTimeout } from './fetchWithTimeout';
 import type { CategoryKey } from '../data/events';
 
@@ -59,9 +59,9 @@ export function isCatalogLoaded(): boolean {
 
 export async function preloadCatalog(): Promise<void> {
   const [evRes, mvRes, csRes] = await Promise.all([
-    fetchWithTimeout(`${API_BASE}/catalog/events`),
-    fetchWithTimeout(`${API_BASE}/catalog/movies`),
-    fetchWithTimeout(`${API_BASE}/catalog/coming-soon`),
+    fetchWithTimeout(`${getApiBase()}/catalog/events`),
+    fetchWithTimeout(`${getApiBase()}/catalog/movies`),
+    fetchWithTimeout(`${getApiBase()}/catalog/coming-soon`),
   ]);
 
   if (!evRes.ok || !mvRes.ok || !csRes.ok) {
@@ -98,8 +98,36 @@ export function getCatalogComingSoonById(id: string): CatalogComingSoon | undefi
   return comingSoon.find((c) => c.id === id);
 }
 
+const CONCERTS_TOP_IDS = ['c1', 'c2', 'c3'];
+const HOME_FEATURED_ID = 'c1';
+
+function sortConcerts(items: CatalogEvent[]): CatalogEvent[] {
+  return [...items].sort((a, b) => {
+    const aRank = CONCERTS_TOP_IDS.indexOf(a.id);
+    const bRank = CONCERTS_TOP_IDS.indexOf(b.id);
+    const aOrder = aRank === -1 ? Number.MAX_SAFE_INTEGER : aRank;
+    const bOrder = bRank === -1 ? Number.MAX_SAFE_INTEGER : bRank;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return a.title.localeCompare(b.title);
+  });
+}
+
 export function getCatalogEventsByCategory(category: CategoryKey): CatalogEvent[] {
-  if (category === 'home') return events.filter((e) => e.top);
+  if (category === 'home') {
+    const featured = events.filter((e) => e.top);
+    const chibuzor = events.find((e) => e.id === HOME_FEATURED_ID);
+    const items =
+      chibuzor && !featured.some((e) => e.id === HOME_FEATURED_ID)
+        ? [chibuzor, ...featured]
+        : featured;
+    return items.sort((a, b) => {
+      if (a.id === HOME_FEATURED_ID) return -1;
+      if (b.id === HOME_FEATURED_ID) return 1;
+      return 0;
+    });
+  }
   if (category === 'cinema') return [];
-  return events.filter((e) => e.category === category);
+  const items = events.filter((e) => e.category === category);
+  if (category === 'concerts') return sortConcerts(items);
+  return items;
 }

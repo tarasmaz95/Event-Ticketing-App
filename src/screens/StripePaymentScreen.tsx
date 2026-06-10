@@ -13,6 +13,7 @@ import {
 import type { TextInput as TextInputType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
+import { BackIcon } from '../components/BackIcon';
 import type { CheckoutOrder } from '../data/checkout';
 import { getShowItemById } from '../data/catalog';
 import { isValidExpiry, readWebInputValue } from '../lib/formUtils';
@@ -110,7 +111,7 @@ export function StripePaymentScreen({ order, customer, onBack, onPay }: Props) {
       <SafeAreaView edges={['top']} style={styles.headerSafe}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-            <Text style={styles.backIcon}>←</Text>
+            <BackIcon size={26} />
           </TouchableOpacity>
           <View style={styles.stripeLogoWrap}>
             <Text style={styles.stripeLogo}>stripe</Text>
@@ -272,11 +273,6 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backIcon: {
-    fontSize: 26,
-    color: Colors.white,
-    fontWeight: '600',
   },
   stripeLogoWrap: { flex: 1, alignItems: 'center' },
   stripeLogo: {

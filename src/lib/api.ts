@@ -1,6 +1,7 @@
 import type { CheckoutOrder } from '../data/checkout';
 import type { SavedTicket } from '../types/ticket';
-import { API_BASE } from './config';
+import { getApiBase } from './config';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 export type { SavedTicket } from '../types/ticket';
 
@@ -11,7 +12,7 @@ function primaryFormat(formats: string): string {
 }
 
 export async function fetchTickets(): Promise<SavedTicket[]> {
-  const res = await fetch(`${API_BASE}/tickets`);
+  const res = await fetchWithTimeout(`${getApiBase()}/tickets`);
   if (!res.ok) throw new Error('Failed to load tickets');
   return res.json();
 }
@@ -20,7 +21,7 @@ export async function savePurchase(
   order: CheckoutOrder,
   customer?: { name: string; email: string },
 ): Promise<SavedTicket[]> {
-  const res = await fetch(`${API_BASE}/tickets`, {
+  const res = await fetchWithTimeout(`${getApiBase()}/tickets`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -49,7 +50,9 @@ export function formatFromSession(formats: string): string {
 }
 
 export async function sendTicketEmail(ticketId: number): Promise<void> {
-  const res = await fetch(`${API_BASE}/tickets/${ticketId}/email`, { method: 'POST' });
+  const res = await fetchWithTimeout(`${getApiBase()}/tickets/${ticketId}/email`, {
+    method: 'POST',
+  });
   if (!res.ok) throw new Error('Failed to send ticket email');
 }
 
@@ -57,7 +60,7 @@ export async function returnOrder(
   orderKey: string,
   reason: string,
 ): Promise<{ ok: boolean; error?: string; count?: number; refundAmount?: number }> {
-  const res = await fetch(`${API_BASE}/returns`, {
+  const res = await fetchWithTimeout(`${getApiBase()}/returns`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ orderKey, reason }),

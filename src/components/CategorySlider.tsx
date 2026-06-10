@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Colors } from '../theme';
 import type { CategoryKey } from '../data/events';
 import { CATEGORIES } from '../data/events';
@@ -17,21 +17,23 @@ export function CategorySlider({ active, onChange }: Props) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.sliderContent}
         style={styles.slider}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
       >
         {CATEGORIES.map((cat) => {
           const isActive = active === cat.key;
           return (
-            <TouchableOpacity
+            <Pressable
               key={cat.key}
-              style={styles.tab}
+              style={({ pressed }) => [styles.tab, pressed && styles.tabPressed]}
               onPress={() => onChange(cat.key)}
-              activeOpacity={0.75}
+              hitSlop={6}
             >
               <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
                 {cat.label}
               </Text>
               {isActive && <View style={styles.underline} />}
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </ScrollView>
@@ -64,6 +66,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
     height: 44,
+  },
+  tabPressed: {
+    opacity: 0.8,
   },
   tabLabel: {
     fontSize: 12,

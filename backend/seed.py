@@ -14,9 +14,9 @@ def img(photo_id: str) -> str:
     return f"https://images.unsplash.com/{photo_id}{Q}"
 
 
-CHIBUZOR_1 = "https://tickets.tm1.website/assets/assets/concert-chibuzor-1.f0bf3b5a77902a4f78e336fac689b651.png"
-CHIBUZOR_2 = "https://tickets.tm1.website/assets/assets/concert-chibuzor-2.3f2604e10c1a9845c4a443e315b45eb2.png"
-CHIBUZOR_3 = "https://tickets.tm1.website/assets/assets/concert-chibuzor-3.c198a9fa2c255afdc276ec8335093dab.png"
+CHIBUZOR_1 = "http://localhost:8001/static/concert-chibuzor-1.png"
+CHIBUZOR_2 = "http://localhost:8001/static/concert-chibuzor-2.png"
+CHIBUZOR_3 = "http://localhost:8001/static/concert-chibuzor-3.png"
 
 
 def sections(price_from: float, price_to: float) -> str:

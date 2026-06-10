@@ -223,10 +223,32 @@ export const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: 'cinema', label: 'CINEMA' },
 ];
 
+const CONCERTS_TOP_IDS = ['c1', 'c2', 'c3'];
+
 export function getEventsByCategory(category: CategoryKey): Event[] {
-  if (category === 'home') return events.filter((e) => e.top);
+  if (category === 'home') {
+    const featured = events.filter((e) => e.top);
+    const chibuzor = events.find((e) => e.id === 'c1');
+    const items =
+      chibuzor && !featured.some((e) => e.id === 'c1') ? [chibuzor, ...featured] : featured;
+    return items.sort((a, b) => {
+      if (a.id === 'c1') return -1;
+      if (b.id === 'c1') return 1;
+      return 0;
+    });
+  }
   if (category === 'cinema') return [];
-  return events.filter((e) => e.category === category);
+  const items = events.filter((e) => e.category === category);
+  if (category === 'concerts') {
+    return [...items].sort((a, b) => {
+      const aOrder = CONCERTS_TOP_IDS.indexOf(a.id);
+      const bOrder = CONCERTS_TOP_IDS.indexOf(b.id);
+      const aRank = aOrder === -1 ? Number.MAX_SAFE_INTEGER : aOrder;
+      const bRank = bOrder === -1 ? Number.MAX_SAFE_INTEGER : bOrder;
+      return aRank - bRank;
+    });
+  }
+  return items;
 }
 
 export function getEventById(id: string): Event | undefined {

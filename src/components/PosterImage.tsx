@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, type ImageStyle, type StyleProp } from 'react-native';
 import { fallbackImage } from '../data/images';
+import { resolveAssetUrl } from '../lib/config';
 
 interface Props {
   uri: string;
@@ -9,7 +10,11 @@ interface Props {
 }
 
 export function PosterImage({ uri, seed, style }: Props) {
-  const [src, setSrc] = useState(uri);
+  const [src, setSrc] = useState(() => resolveAssetUrl(uri));
+
+  useEffect(() => {
+    setSrc(resolveAssetUrl(uri));
+  }, [uri]);
 
   return (
     <Image

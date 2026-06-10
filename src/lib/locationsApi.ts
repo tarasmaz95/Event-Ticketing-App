@@ -1,4 +1,4 @@
-import { API_BASE } from './config';
+import { getApiBase } from './config';
 import { fetchWithTimeout } from './fetchWithTimeout';
 
 export interface Venue {
@@ -30,7 +30,7 @@ export function isLocationsLoaded(): boolean {
 }
 
 export async function preloadLocations(): Promise<void> {
-  const res = await fetchWithTimeout(`${API_BASE}/locations`);
+  const res = await fetchWithTimeout(`${getApiBase()}/locations`);
   if (!res.ok) throw new Error('Failed to load locations');
   data = await res.json();
 }

@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { PosterImage } from '../components/PosterImage';
+import { BackIcon } from '../components/BackIcon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
 import { getShowItemById } from '../data/catalog';
@@ -35,10 +37,14 @@ interface Props {
   onCheckout: (order: CheckoutOrder) => void;
 }
 
-const SEAT_SIZE = 22;
-const SEAT_GAP = 4;
+const BASE_SEAT_SIZE = 22;
+const BASE_SEAT_GAP = 4;
+const ROW_LABEL_WIDTH = 26;
+const MAP_SIDE_PADDING = 16;
+const MIN_SEAT_SIZE = 14;
 
 export function SeatSelectionScreen({ itemId, session, onBack, onCheckout }: Props) {
+  const { width: screenWidth } = useWindowDimensions();
   const item = getShowItemById(itemId);
   const [layout, setLayout] = useState<SeatRow[]>([]);
   const [zones, setZones] = useState<SeatZone[]>(DEFAULT_ZONES);
@@ -106,6 +112,27 @@ export function SeatSelectionScreen({ itemId, session, onBack, onCheckout }: Pro
     return max || 18;
   }, [layout]);
 
+  const seatMetrics = useMemo(() => {
+    const contentWidth = Math.min(screenWidth, 480);
+    const availableWidth = contentWidth - ROW_LABEL_WIDTH - MAP_SIDE_PADDING;
+    const naturalWidth = maxCols * (BASE_SEAT_SIZE + BASE_SEAT_GAP) - BASE_SEAT_GAP;
+
+    if (naturalWidth <= availableWidth) {
+      return {
+        seatSize: BASE_SEAT_SIZE,
+        seatGap: BASE_SEAT_GAP,
+        mapWidth: naturalWidth,
+      };
+    }
+
+    const scale = availableWidth / naturalWidth;
+    const seatSize = Math.max(MIN_SEAT_SIZE, Math.floor(BASE_SEAT_SIZE * scale));
+    const seatGap = Math.max(2, Math.floor(BASE_SEAT_GAP * scale));
+    const mapWidth = maxCols * (seatSize + seatGap) - seatGap;
+
+    return { seatSize, seatGap, mapWidth };
+  }, [maxCols, screenWidth]);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.red} />
@@ -113,7 +140,7 @@ export function SeatSelectionScreen({ itemId, session, onBack, onCheckout }: Pro
       <SafeAreaView edges={['top']} style={styles.headerSafe}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-            <Text style={styles.backIcon}>←</Text>
+            <BackIcon size={26} />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>
             {item.title}, {session.hallFullName.length > 18
@@ -163,10 +190,26 @@ export function SeatSelectionScreen({ itemId, session, onBack, onCheckout }: Pro
               {layout.map((row) => (
                 <View key={row.row} style={styles.seatRow}>
                   <Text style={styles.rowNum}>{row.row}</Text>
-                  <View style={[styles.seatRowInner, { maxWidth: maxCols * (SEAT_SIZE + SEAT_GAP) }]}>
+                  <View
+                    style={[
+                      styles.seatRowInner,
+                      {
+                        width: seatMetrics.mapWidth,
+                        gap: seatMetrics.seatGap,
+                      },
+                    ]}
+                  >
                     {row.seats.map((seat, i) => {
                       if (!seat) {
-                        return <View key={`gap-${row.row}-${i}`} style={styles.aisle} />;
+                        return (
+                          <View
+                            key={`gap-${row.row}-${i}`}
+                            style={{
+                              width: seatMetrics.seatSize,
+                              height: seatMetrics.seatSize,
+                            }}
+                          />
+                        );
                       }
                       const isSelected = selected.has(seat.id);
                       const bg = seat.sold
@@ -187,11 +230,24 @@ export function SeatSelectionScreen({ itemId, session, onBack, onCheckout }: Pro
                           activeOpacity={0.75}
                           style={[
                             styles.seat,
-                            { backgroundColor: bg },
+                            {
+                              width: seatMetrics.seatSize,
+                              height: seatMetrics.seatSize,
+                              backgroundColor: bg,
+                            },
                             isSelected && styles.seatSelected,
                           ]}
                         >
-                          {seat.sold && <Text style={styles.soldX}>✕</Text>}
+                          {seat.sold && (
+                            <Text
+                              style={[
+                                styles.soldX,
+                                { fontSize: Math.max(8, seatMetrics.seatSize * 0.45) },
+                              ]}
+                            >
+                              ✕
+                            </Text>
+                          )}
                         </TouchableOpacity>
                       );
                     })}
@@ -283,7 +339,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 26, color: Colors.white, fontWeight: '600' },
   headerTitle: {
     flex: 1,
     textAlign: 'center',
@@ -384,7 +439,7 @@ const styles = StyleSheet.create({
   seatRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SEAT_GAP,
+    marginBottom: 4,
   },
   rowNum: {
     width: 20,
@@ -397,12 +452,9 @@ const styles = StyleSheet.create({
   seatRowInner: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
-    justifyContent: 'center',
-    gap: SEAT_GAP,
+    justifyContent: 'flex-start',
   },
   seat: {
-    width: SEAT_SIZE,
-    height: SEAT_SIZE,
     borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
@@ -416,14 +468,11 @@ const styles = StyleSheet.create({
     color: '#888',
     fontWeight: '700',
   },
-  aisle: {
-    width: SEAT_SIZE,
-    height: SEAT_SIZE,
-  },
   legend: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 40,
+    gap: 24,
     marginTop: 28,
     paddingHorizontal: 16,
   },

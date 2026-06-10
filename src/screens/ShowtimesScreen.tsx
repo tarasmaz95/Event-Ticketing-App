@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { PosterImage } from '../components/PosterImage';
+import { BackIcon } from '../components/BackIcon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
 import { getShowItemById } from '../data/catalog';
@@ -66,7 +67,7 @@ export function ShowtimesScreen({ itemId, onBack, onSessionSelect }: Props) {
       <SafeAreaView edges={['top']} style={styles.headerSafe}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-            <Text style={styles.backIcon}>←</Text>
+            <BackIcon size={26} />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{item.title}</Text>
           <View style={styles.backBtn} />
@@ -170,7 +171,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 26, color: Colors.white, fontWeight: '600' },
   headerTitle: {
     flex: 1,
     textAlign: 'center',

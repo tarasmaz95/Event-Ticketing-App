@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from db import get_db, init_db
 from routers import admin, catalog, locations, returns, seats, showtimes, tickets
@@ -24,6 +27,8 @@ app.include_router(showtimes.router)
 app.include_router(seats.router)
 app.include_router(tickets.router)
 app.include_router(returns.router)
+
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
 
 @app.on_event("startup")

@@ -13,6 +13,7 @@ import type { TextInput as TextInputType } from 'react-native';
 import { readWebInputValue } from '../lib/formUtils';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
+import { BackIcon } from '../components/BackIcon';
 import type { CheckoutOrder, OrderSeat } from '../data/checkout';
 import { getShowItemById } from '../data/catalog';
 import { SEAT_COLORS } from '../data/seats';
@@ -127,7 +128,7 @@ export function CheckoutScreen({ order, onBack, onPay }: Props) {
       <SafeAreaView edges={['top']} style={styles.headerSafe}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-            <Text style={styles.backIcon}>←</Text>
+            <BackIcon size={26} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Checkout</Text>
           <View style={styles.timerWrap}>
@@ -319,7 +320,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 26, color: Colors.white, fontWeight: '600' },
   headerTitle: {
     flex: 1,
     textAlign: 'center',

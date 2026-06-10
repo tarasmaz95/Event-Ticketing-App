@@ -1,4 +1,7 @@
-const API_BASE = '/api/admin';
+const API_BASE =
+  window.location.hostname === 'localhost'
+    ? 'http://localhost:8001/api/admin'
+    : '/api/admin';
 
 const RETURN_REASONS = [
   'Customer request',

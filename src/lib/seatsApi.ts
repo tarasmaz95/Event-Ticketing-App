@@ -1,4 +1,5 @@
-import { API_BASE } from './config';
+import { getApiBase } from './config';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 export type SeatCategory = 'good' | 'superlux';
 
@@ -41,7 +42,7 @@ export async function fetchSeatLayout(params: {
     time: params.time,
     hall: params.hall,
   });
-  const res = await fetch(`${API_BASE}/seats/layout?${q}`);
+  const res = await fetchWithTimeout(`${getApiBase()}/seats/layout?${q}`);
   if (!res.ok) throw new Error('Failed to load seat layout');
   return res.json();
 }

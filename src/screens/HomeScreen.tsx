@@ -5,9 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   StatusBar,
   ActivityIndicator,
   TextInput,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme';
@@ -153,6 +156,8 @@ export function HomeScreen({
 
   useEffect(() => {
     setActiveTab(initialTab);
+    if (initialTab === 'cinema') setCategory('cinema');
+    if (initialTab === 'soon') setCategory('home');
   }, [initialTab]);
 
   const loadTickets = useCallback(async () => {
@@ -281,6 +286,8 @@ export function HomeScreen({
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
       >
         {activeTab === 'tickets' ? (
           ticketsLoading ? (
@@ -329,25 +336,28 @@ export function HomeScreen({
         )}
       </ScrollView>
 
-      <SafeAreaView edges={['bottom']} style={styles.tabBarSafe}>
-        <View style={styles.tabBar}>
+      <SafeAreaView edges={['bottom']} style={styles.tabBarSafe} pointerEvents="box-none">
+        <View style={styles.tabBar} pointerEvents="auto">
           {BOTTOM_TABS.map((tab) => {
             const active = activeTab === tab.key;
             return (
-              <TouchableOpacity
+              <Pressable
                 key={tab.key}
-                style={styles.tabItem}
+                style={({ pressed }) => [styles.tabItem, pressed && styles.tabItemPressed]}
                 onPress={() => {
+                  Keyboard.dismiss();
+                  setSearchQuery('');
                   setActiveTab(tab.key);
                   if (tab.key === 'cinema') setCategory('cinema');
                   if (tab.key === 'soon') setCategory('home');
                 }}
-                activeOpacity={0.8}
+                android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+                hitSlop={8}
               >
                 <Text style={[styles.tabIcon, active && styles.tabIconActive]}>{tab.icon}</Text>
                 <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
                 {active && <View style={styles.tabIndicator} />}
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
         </View>
@@ -462,7 +472,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: {
     padding: 14,
-    paddingBottom: 24,
+    paddingBottom: 100,
     gap: 14,
   },
   emptyState: {
@@ -611,9 +621,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   tabBarSafe: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: Colors.red,
-    flexGrow: 0,
-    flexShrink: 0,
+    zIndex: 20,
+    ...Platform.select({
+      android: { elevation: 20 },
+      default: {},
+    }),
   },
   tabBar: {
     flexDirection: 'row',
@@ -622,6 +639,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   tabItem: { flex: 1, alignItems: 'center', paddingVertical: 6, position: 'relative' },
+  tabItemPressed: { opacity: 0.85 },
   tabIcon: { fontSize: 20, color: 'rgba(255,255,255,0.65)', marginBottom: 4 },
   tabIconActive: { color: Colors.white },
   tabLabel: {
